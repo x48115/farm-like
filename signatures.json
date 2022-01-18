@@ -1,0 +1,69 @@
+#! /usr/bin/env node
+const Web3 = require("web3");
+const fetch = require("node-fetch");
+const delay = require("delay");
+const provider =
+  "wss://eth-mainnet.ws.alchemyapi.io/v2/<your_key>";
+// const provider = "ws://localhost:8546";
+const web3 = new Web3(provider);
+
+const fetchAbi = async (address) => {
+  console.log(`Fetching ABI for ${address}`);
+  const apiKey = "<your_key>";
+  const url = `https://api.etherscan.io/api?module=contract&action=getabi&address=${address}&apikey=${apiKey}`;
+  const response = await fetch(url);
+  const responseData = await response.json();
+  const abi = JSON.parse(responseData.result);
+  delay(300);
+  return abi;
+};
+
+// Import farms from farms.json instead... this is just for testing
+let farms = [
+  {
+    name: "Synthetix Staking",
+    address: "0xc0d8994Cd78eE1980885DF1A0C5470fC977b5cFe",
+  },
+  {
+    name: "MasterChef",
+    address: "0xc2EdaD668740f1aA35E4D8f227fB8E17dcA888Cd",
+  },
+];
+
+const addSignaturesToFarms = async () => {
+  for (farm of farms) {
+    const { name: farmName, address } = farm;
+    abi = await fetchAbi(address);
+    console.log(JSON.stringify(abi, null, 2));
+    const interfaces = [];
+    for (method of abi) {
+      const { name: methodName, inputs, type } = method;
+      if (type === "constructor") {
+        continue;
+      }
+      let argsArr = [];
+      let argsStr = "";
+      const buildArgs = ({ type }) => {
+        argsArr.push(type);
+      };
+      farm.dog = true;
+      inputs.forEach(buildArgs);
+      argsStr = argsArr.join(",");
+      const signatureStr = `${methodName}(${argsStr})`;
+      const signatureBytes4 = web3.utils.sha3(signatureStr).substring(2, 9);
+      interfaces.push({ name: signatureStr, signature: signatureBytes4 });
+    }
+    farm.interfaces = interfaces;
+  }
+  console.log(JSON.stringify(farms, null, 2));
+};
+
+const start = async () => {
+  await addSignaturesToFarms();
+
+  const code = await web3.eth.getCode(
+    "0xc2EdaD668740f1aA35E4D8f227fB8E17dcA888Cd"
+  );
+};
+
+start();
